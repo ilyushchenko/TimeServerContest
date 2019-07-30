@@ -6,6 +6,9 @@ namespace TimeServerContest
     {
         static void Main(string[] args)
         {
+            var server = new HttpServer("localhost", 3567);
+            server.Listen();
+            Console.ReadLine();
         }
     }
 }
