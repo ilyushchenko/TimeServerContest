@@ -29,8 +29,15 @@ namespace TimeServerContest
 
         private void Run()
         {
-            //TODO: Handle exception 
-            _httpListener.Start();
+            try
+            {
+                _httpListener.Start();
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Error while starting server");
+                return;
+            }
 
             Console.WriteLine("Server has been started");
             foreach (var prefix in _httpListener.Prefixes)
@@ -43,38 +50,50 @@ namespace TimeServerContest
             {
                 //TODO: Make async server
                 HttpListenerContext context = _httpListener.GetContext();
-
-                HttpListenerRequest request = context.Request;
-                HttpListenerResponse response = context.Response;
-
-                var route = request.Url.AbsolutePath.ToUpper();
-
-                IHttpResult responseResult = new NotFoundResult();
-                if (_routes.ContainsKey(route))
+                try
                 {
-                    var queryParams = new Dictionary<string, string>();
-                    foreach (string key in request.QueryString.Keys)
-                    {
-                        if (key != null)
-                        {
-                            queryParams.Add(key, request.QueryString[key]);
-                        }
-                    }
-                    responseResult = _routes[route].Invoke(queryParams);
+                    HandleClient(context);
                 }
-
-                response.ContentLength64 = responseResult.ContentLength;
-                response.ContentType = responseResult.ContentType;
-                response.StatusCode = responseResult.StatusCode;
-
-                using (Stream output = response.OutputStream)
+                catch (Exception ex)
                 {
-                    output.Write(responseResult.Content, 0, responseResult.Content.Length);
-                    output.Close();
+                    Console.WriteLine("Handle error");
+                    Console.WriteLine(ex.ToString());
                 }
             }
 
             _httpListener.Close();
+        }
+
+        private void HandleClient(HttpListenerContext context)
+        {
+            HttpListenerRequest request = context.Request;
+            HttpListenerResponse response = context.Response;
+
+            var route = request.Url.AbsolutePath.ToUpper();
+
+            IHttpResult responseResult = new NotFoundResult();
+            if (_routes.ContainsKey(route))
+            {
+                var queryParams = new Dictionary<string, string>();
+                foreach (string key in request.QueryString.Keys)
+                {
+                    if (key != null)
+                    {
+                        queryParams.Add(key, request.QueryString[key]);
+                    }
+                }
+                responseResult = _routes[route].Invoke(queryParams);
+            }
+
+            response.ContentLength64 = responseResult.ContentLength;
+            response.ContentType = responseResult.ContentType;
+            response.StatusCode = responseResult.StatusCode;
+
+            using (Stream output = response.OutputStream)
+            {
+                output.Write(responseResult.Content, 0, responseResult.Content.Length);
+                output.Close();
+            }
         }
 
         public void AddEndpoint(string uri, ResponseDelegate action)
